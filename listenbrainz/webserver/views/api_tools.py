@@ -13,6 +13,7 @@ from listenbrainz.listen import Listen
 from listenbrainz.webserver import API_LISTENED_AT_ALLOWED_SKEW
 from listenbrainz.webserver.external import messybrainz
 from werkzeug.exceptions import InternalServerError, ServiceUnavailable, BadRequest
+from listenbrainz.listenstore.RedisListenStore import store_listens
 
 #: Maximum overall listen size in bytes, to prevent egregious spamming.
 MAX_LISTEN_SIZE = 10240
@@ -50,6 +51,19 @@ def insert_payload(payload, user, listen_type=LISTEN_TYPE_IMPORT):
         print(e)
     return augmented_listens
 
+
+def top_ten_listens(payload, user, listens, listen_type):
+    top_listens_data = []
+    augmented_listens_result=[]
+    for listen in listens:
+        if listen_type == LISTEN_TYPE_PLAYING_NOW:
+            insert_payload(payload, user, listen_type)
+            augmented_listens_result = augmented_listens
+    top_listen_data = store_listens(augmented_listens_result)
+    redis_connection._redis.redis.setex('latest_listens:{}'.format(listen[top_listens_data]),
+                                       ujson.dumps(listen).encode('utf-8')
+                                       )
+    return top_listens_data
 
 def _send_listens_to_queue(listen_type, listens):
     submit = []

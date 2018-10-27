@@ -8,7 +8,7 @@ from redis import Redis
 
 from listenbrainz.listen import Listen
 from listenbrainz.listenstore import ListenStore, MIN_ID
-
+from listenbrainz.webserver.views.api_tools import top_ten_listens
 
 class RedisListenStore(ListenStore):
     def __init__(self, log, conf):
@@ -40,3 +40,21 @@ class RedisListenStore(ListenStore):
         except redis.exceptions.ConnectionError as e:
             self.log.error("Redis ping didn't work: {}".format(str(e)))
             raise
+
+    def store_listens(self):
+        listens_data = []
+        data=self.redis.get('listens:{}'.format(
+            Listen.from_json(timestamp).first()))
+        if not data:
+            return None
+        data = ujson.loads(data)
+        data.update({'listens': listens_data})
+        return Listen.from_json(data)
+
+
+    def store_top_listens(self,top_listens_data):
+        top_listens_shelf = []
+        data=self.redis.get('latest_listens:{}'.format(top_listens_data)
+        top_listens_shelf=data[:10]
+        data = ujson.loads(top_listens_shelf)
+        return Listen.from_json(data)
